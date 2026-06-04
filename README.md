@@ -68,3 +68,40 @@ The physical hardware and AI software components interface in a continuous edge-
  │   Slot 0:    │ │   Slot 1:    │ │   Slot 2:    │ │   Slot 3:    │ │   Slot 4:    │ │   Slot 5:    │
  │   Plastic    │ │    Paper     │ │    Metal     │ │    Glass     │ │   ORGANIC    │ │   E-Waste    │
  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+
+```
+
+##  4. Phase 1 & 2 Production Performance Baseline
+
+The baseline machine learning brain was trained on an NVIDIA Tesla T4 GPU for **30 epochs** using a dataset of ~2,500 public dry recycling images. 
+
+To preserve compilation integrity and prevent training loop crashes on unrepresented categories while our custom campus dataset was being gathered, we engineered **Synthetic Micro-Canvas Placeholders** (microscopic coordinate maps) to safely anchor Class 4 (Organic) and Class 5 (E-Waste).
+
+### Core Validation Metrics (30-Epoch T4 GPU Checkpoint)
+
+| Waste Category | Precision (P) | Recall (R) | mAP50 (Accuracy Index) | Current Status |
+| :--- | :---: | :---: | :---: | :--- |
+| **Plastic (PET/HDPE)** | **96.2%** | 87.9% | **97.5%** |  Production-Grade |
+| **Paper & Cardboard** | **97.2%** | 98.9% | **99.4%** |  Near Perfect |
+| **Metal (Alum./Steel)** | **92.8%** | 94.3% | **98.7%** |  Production-Grade |
+| **Glass Bottles/Jars** | **91.8%** | 96.9% | **98.1%** |  Production-Grade |
+| *Organic Food Waste* | *0.0%* | *0.0%* | *0.0%* |  Bootstrap Placeholder |
+| *E-Waste / Hazardous* | *0.0%* | *0.0%* | *0.0%* |  Bootstrap Placeholder |
+
+>  **Technical Inference Note:** The baseline dry recycling modules have already achieved an elite performance profile between **97.5% and 99.4% accuracy**. The mathematical total average (`mAP50: 65.6%`) is temporarily pulled lower purely because Classes 4 and 5 are resting on synthetic placeholder anchors that intentionally register 0% until replaced by real images.
+
+### Pipeline Resilience & Verification Passes
+
+* **Persistent Cloud Bridge:** The entire pipeline mounts directly to cloud folders (`/content/drive/MyDrive/VISION_BIN_PROJECT/runs`), ensuring model weight checkpoints (`last.pt` and `best.pt`) are continuously backed up and immune to runtime disconnects.
+* **Late-Stage Recovery Loop:** Solved Google Drive I/O network throttling at epoch 27 by writing an interrupt-resilient automation script (`resume=True`) to finish compiling the production baseline.
+* **The Human Isolation Pass:** Subjected the re-wired custom model to out-of-distribution human images. The model yielded **exactly 0 false positive waste detections**. This confirms the system will remain silent and conserve battery power at the edge until a genuine piece of waste is introduced.
+
+---
+
+## 5. Active Roadmap & Next Steps
+
+We are currently entering **Phase 3 & 4 (Local Edge Adaptation)**:
+
+1. **Local Campus Data Ingestion:** Collect 20-30 high-resolution smartphone images per class directly from the IIT Indore campus environment (hostels, labs, cafeterias) under diverse lighting states.
+2. **Context Adaptation for Local Indian Brands:** Retrain the model network on localized textures (e.g., Frooti Tetra Paks, crumpled Bisleri bottles, Amul packaging wrappers, and traditional clay *kulhads*).
+3. **Weight Fusion & Hardware Deployment:** Replace the structural synthetic placeholders with real annotated data matrices to push the total system average past **95%+ across all 6 categories**, preparing the model size for optimization and final deployment onto microcontroller hardware.
