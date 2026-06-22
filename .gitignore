@@ -221,3 +221,9 @@ __marimo__/
 runs/
 *.pt
 
+# Datasets and Archives
+custom_dataset/
+custom_dataset_subset/
+*.zip
+
+
