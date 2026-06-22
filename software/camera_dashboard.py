@@ -194,7 +194,7 @@ CLASS_META = {
 # -----------------------------------------------------------------------------
 PROJECT_ROOT = "C:/Users/kumku/.gemini/antigravity/scratch/drishti_cps_proposal/VISION-BIN"
 WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "runs/vision_bin_baseline_prod/weights/best.pt")
-DATASET_PATH = "C:/Users/kumku/.gemini/antigravity/scratch/drishti_cps_proposal/vision_bin_public_dataset"
+DATASET_PATH = "C:/Users/kumku/.gemini/antigravity/scratch/drishti_cps_proposal/vision_bin_custom_dataset"
 
 # -----------------------------------------------------------------------------
 # 4. LOAD YOLO MODEL (WITH ROBUST FALLBACK)
