@@ -199,33 +199,58 @@ DATASET_PATH = "C:/Users/kumku/.gemini/antigravity/scratch/drishti_cps_proposal/
 # -----------------------------------------------------------------------------
 # 4. LOAD YOLO MODEL (WITH ROBUST FALLBACK)
 # -----------------------------------------------------------------------------
+# Helper to map COCO classes to Vision Bin classes
+def map_coco_to_vision_bin(cls_name):
+    cls_name = cls_name.lower()
+    if cls_name == "bottle":
+        return 0, "Plastic (COCO Bottle)"
+    elif cls_name in ["banana"]:
+        return 4, "Organic (COCO Banana)"
+    elif cls_name in ["apple"]:
+        return 4, "Organic (COCO Apple)"
+    elif cls_name in ["orange", "broccoli", "carrot", "sandwich"]:
+        return 4, f"Organic (COCO {cls_name.capitalize()})"
+    elif cls_name in ["keyboard", "laptop", "mouse", "remote"]:
+        return 5, f"E-waste (COCO {cls_name.capitalize()})"
+    elif cls_name in ["cell phone"]:
+        return 5, "E-waste (COCO Phone)"
+    elif cls_name in ["book", "cup", "bowl"]:
+        return 1, f"Paper (COCO {cls_name.capitalize()})"
+    elif cls_name in ["fork", "knife", "spoon", "scissors"]:
+        return 2, f"Metal (COCO {cls_name.capitalize()})"
+    elif cls_name in ["wine glass"]:
+        return 3, f"Glass (COCO {cls_name.capitalize()})"
+    else:
+        return 0, f"Other (COCO {cls_name.capitalize()})"
+
 @st.cache_resource
-def get_model():
+def get_model(choice):
     if not YOLO_AVAILABLE:
         st.warning("⚠️ Ultralytics package is missing. Running in Simulation Mode.")
         return None
         
-    if os.path.exists(WEIGHTS_PATH):
-        try:
-            model = YOLO(WEIGHTS_PATH)
-            return {"model": model, "type": "Trained YOLOv11 (best.pt)"}
-        except Exception as e:
-            st.error(f"Error loading custom weights: {e}. Falling back to default.")
+    if choice == "Custom Waste Model (6 Classes)":
+        if os.path.exists(WEIGHTS_PATH):
+            try:
+                model = YOLO(WEIGHTS_PATH)
+                return {"model": model, "type": "Trained YOLOv11 (best.pt)", "is_custom": True}
+            except Exception as e:
+                st.error(f"Error loading custom weights: {e}. Falling back to default.")
+        else:
+            st.warning("Custom weights (best.pt) not found. Falling back to COCO.")
             
-    # Fallback to pre-trained weights
+    # Load pre-trained COCO model
     try:
         model = YOLO("yolo11n.pt")
-        return {"model": model, "type": "Pre-trained YOLOv11n (COCO Fallback)"}
+        return {"model": model, "type": "Pre-trained YOLOv11n (COCO)", "is_custom": False}
     except Exception as e:
         st.error(f"Could not load pre-trained YOLO: {e}")
         return None
 
-model_wrapper = get_model()
-
 # -----------------------------------------------------------------------------
 # 5. DRAW BOUNDING BOXES UTILITY
 # -----------------------------------------------------------------------------
-def draw_predictions(image, boxes, threshold):
+def draw_predictions(image, boxes, threshold, is_custom, names_dict):
     """
     Draws custom styled bounding boxes and labels onto a PIL image.
     """
@@ -251,47 +276,42 @@ def draw_predictions(image, boxes, threshold):
             
         xyxy = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
         
-        meta = CLASS_META.get(cls_id, {"name": f"Class {cls_id}", "color": "#ffffff"})
-        color = meta["color"]
-        name = meta["name"]
-        
+        if is_custom:
+            meta = CLASS_META.get(cls_id, {"name": f"Class {cls_id}", "color": "#ffffff"})
+            color = meta["color"]
+            name = meta["name"]
+        else:
+            cls_name = names_dict.get(cls_id, f"Class {cls_id}")
+            mapped_id, label_name = map_coco_to_vision_bin(cls_name)
+            meta = CLASS_META.get(mapped_id, {"name": label_name, "color": "#ffffff"})
+            color = meta["color"]
+            name = label_name
+            
         # Convert color hex to RGB
         rgb_color = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
         
         # Draw bounding box rectangle
-        # Main box lines
         draw.rectangle(xyxy, outline=rgb_color, width=4)
         
-        # Bounding box corners enhancement (semi-bold appearance)
+        # Bounding box corners
         x1, y1, x2, y2 = xyxy
         corner_len = min(20, (x2-x1)/4, (y2-y1)/4)
-        # Top-left corner
         draw.line([(x1, y1), (x1 + corner_len, y1)], fill=rgb_color, width=7)
         draw.line([(x1, y1), (x1, y1 + corner_len)], fill=rgb_color, width=7)
-        # Top-right corner
         draw.line([(x2, y1), (x2 - corner_len, y1)], fill=rgb_color, width=7)
         draw.line([(x2, y1), (x2, y1 + corner_len)], fill=rgb_color, width=7)
-        # Bottom-left corner
         draw.line([(x1, y2), (x1 + corner_len, y2)], fill=rgb_color, width=7)
         draw.line([(x1, y2), (x1, y2 - corner_len)], fill=rgb_color, width=7)
-        # Bottom-right corner
         draw.line([(x2, y2), (x2 - corner_len, y2)], fill=rgb_color, width=7)
         draw.line([(x2, y2), (x2, y2 - corner_len)], fill=rgb_color, width=7)
 
         # Label box drawing
         label_text = f"{name} {conf:.0%}"
-        
-        # Get text size
         text_bbox = draw.textbbox((0, 0), label_text, font=font)
         text_w = text_bbox[2] - text_bbox[0] + 12
         text_h = text_bbox[3] - text_bbox[1] + 8
         
-        # Text background box
-        draw.rectangle(
-            [x1, max(0, y1 - text_h), x1 + text_w, y1], 
-            fill=rgb_color
-        )
-        # Draw text inside background box
+        draw.rectangle([x1, max(0, y1 - text_h), x1 + text_w, y1], fill=rgb_color)
         draw.text((x1 + 6, max(0, y1 - text_h) + 2), label_text, fill=(15, 23, 42), font=font)
         
         detections.append({
@@ -324,18 +344,28 @@ with st.sidebar:
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown('<h3 style="margin-top:0; color:#f8fafc; font-family:\'Space Grotesk\'">⚙️ CONFIGURATION</h3>', unsafe_allow_html=True)
     
+    # Model Selection Toggle
+    model_choice = st.radio(
+        "Active AI Model",
+        ["Custom Waste Model (6 Classes)", "Pre-trained COCO Model (80 Classes)"],
+        index=0,
+        help="Switch between your custom-trained 1-epoch model and the pre-trained 80-class COCO model (which includes highly accurate bottles, cans, etc.)."
+    )
+    
     # Confidence Slider
     conf_thresh = st.slider(
         "Confidence Threshold", 
-        min_value=0.10, 
+        min_value=0.05, 
         max_value=1.00, 
         value=0.25, 
         step=0.05,
         help="Filter out detections with confidence scores lower than this threshold."
     )
     
-    # Model details card
     st.markdown("---")
+    
+    # Dynamic Model Load
+    model_wrapper = get_model(model_choice)
     model_name = model_wrapper["type"] if model_wrapper else "Simulation (No YOLO)"
     
     st.markdown(
@@ -450,7 +480,13 @@ with col_output:
             inference_time_ms = (time.time() - start_time) * 1000
             
             # Draw predictions on image
-            annotated_img, detections = draw_predictions(selected_image, boxes, conf_thresh)
+            annotated_img, detections = draw_predictions(
+                selected_image, 
+                boxes, 
+                conf_thresh, 
+                is_custom=model_wrapper.get("is_custom", True), 
+                names_dict=model.names
+            )
             
             # Display image
             st.image(annotated_img, caption=f"Model Annotations - {image_name}", use_column_width=True)
